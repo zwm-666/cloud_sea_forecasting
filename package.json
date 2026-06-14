@@ -1,0 +1,16 @@
+{
+  "name": "tcb-official-website",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\""
+  },
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "@cloudbase/wx-cloud-client-sdk": "^1.2.1",
+    "dayjs": "^1.9.3",
+    "tdesign-miniprogram": "^1.6.0"
+  }
+}

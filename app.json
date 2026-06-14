@@ -1,0 +1,20 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "backgroundColor": "#EEF7F3",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#EEF7F3",
+    "navigationBarTitleText": "中国名山云海预测",
+    "navigationBarTextStyle": "black"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于根据你的位置生成出行指南"
+    }
+  }
+}
