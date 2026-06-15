@@ -183,6 +183,7 @@ page {
 }
 
 .probability-number {
+  color: #14312d;
   font-size: 58rpx;
   line-height: 1;
   font-weight: 900;
@@ -340,10 +341,6 @@ page {
   font-size: 54rpx;
   line-height: 1;
   font-weight: 900;
-}
-
-.forecast-best .date-day {
-  color: #fff;
 }
 
 .forecast-main {

@@ -206,6 +206,11 @@ function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
+function dateFromDateString(dateString) {
+  const [year, month, day] = String(dateString).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function addDays(date, offset) {
   const next = new Date(date);
   next.setDate(next.getDate() + offset);
@@ -266,7 +271,7 @@ Page({
   },
 
   buildForecasts(mountain) {
-    const baseDate = new Date(`${this.data.selectedDate}T00:00:00`);
+    const baseDate = dateFromDateString(this.data.selectedDate);
     return [0, 1, 2].map((offset) => {
       const date = addDays(baseDate, offset);
       const seasonal = Math.round(Math.sin(((date.getMonth() + 1) / 12) * Math.PI) * 7);
@@ -293,9 +298,9 @@ Page({
   },
 
   buildForecastsFromWeather(mountain, weatherData) {
-    const baseDate = new Date(`${this.data.selectedDate}T00:00:00`);
+    const baseDate = dateFromDateString(this.data.selectedDate);
     return weatherData.dailyForecasts.map((dayWeather, index) => {
-      const date = new Date(`${dayWeather.date || formatDate(addDays(baseDate, index))}T00:00:00`);
+      const date = dateFromDateString(dayWeather.date || formatDate(addDays(baseDate, index)));
       const probability = calculateCloudSeaProbability(mountain, dayWeather);
       const hasTemperatureRange = Number.isFinite(dayWeather.temperatureMin) && Number.isFinite(dayWeather.temperatureMax);
       const tempText = hasTemperatureRange

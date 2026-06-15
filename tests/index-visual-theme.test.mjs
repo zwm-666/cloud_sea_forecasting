@@ -83,3 +83,31 @@ test('page background stays neutral while probability accents use greener colors
   assert.doesNotMatch(wxss, /\.theme-sunrise\s*\{[^}]*background/);
   assert.doesNotMatch(wxss, /\.theme-dawn\s*\{[^}]*background/);
 });
+
+test('forecast date numbers stay dark on all recommendation card colors', async () => {
+  const wxss = await readFile(new URL('../pages/index/index.wxss', import.meta.url), 'utf8');
+
+  assert.match(wxss, /\.date-day\s*\{[^}]*color:\s*#14312d/);
+  assert.doesNotMatch(wxss, /\.forecast-best\s+\.date-day\s*\{[^}]*color:\s*#fff/);
+});
+
+test('main probability number stays dark while ring color remains data driven', async () => {
+  const [wxml, wxss] = await Promise.all([
+    readFile(new URL('../pages/index/index.wxml', import.meta.url), 'utf8'),
+    readFile(new URL('../pages/index/index.wxss', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(wxml, /color="\{\{visualTheme\.accentColor\}\}"/);
+  assert.doesNotMatch(wxml, /class="probability-number"[^>]*style="color:\s*\{\{visualTheme\.accentColor\}\}/);
+  assert.match(wxss, /\.probability-number\s*\{[^}]*color:\s*#14312d/);
+});
+
+test('forecast weekday labels are calculated from actual selected dates', async () => {
+  const js = await readFile(new URL('../pages/index/index.js', import.meta.url), 'utf8');
+
+  assert.match(js, /function\s+dateFromDateString\s*\(/);
+  assert.match(js, /new Date\(year,\s*month - 1,\s*day\)/);
+  assert.match(js, /const baseDate = dateFromDateString\(this\.data\.selectedDate\)/);
+  assert.match(js, /week:\s*weekNames\[date\.getDay\(\)\]/);
+  assert.doesNotMatch(js, /new Date\(`\$\{this\.data\.selectedDate\}T00:00:00`\)/);
+});
