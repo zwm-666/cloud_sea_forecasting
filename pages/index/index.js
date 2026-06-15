@@ -142,7 +142,58 @@ const mountains = [
 ];
 
 const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-const cardThemes = ['lime', 'green', 'teal'];
+const cloudVisualThemes = [
+  {
+    max: 30,
+    pageClass: 'theme-clear',
+    prompt: '晴空万里，暂难成海',
+    accentColor: '#1f4f8f',
+    accentSoftColor: '#d8edff',
+    accentTextColor: '#24384c',
+    gradientStart: '#4facfe',
+    gradientEnd: '#00f2fe',
+    tierName: '清朗晴空',
+  },
+  {
+    max: 60,
+    pageClass: 'theme-mist',
+    prompt: '雾气渐起，云海蓄势',
+    accentColor: '#1f5f56',
+    accentSoftColor: '#dbe8e9',
+    accentTextColor: '#284653',
+    gradientStart: '#cfd9df',
+    gradientEnd: '#e2ebf0',
+    tierName: '朦胧雾气',
+  },
+  {
+    max: 85,
+    pageClass: 'theme-dawn',
+    prompt: '云海初现，值得期待',
+    accentColor: '#18a058',
+    accentSoftColor: '#d7f3e5',
+    accentTextColor: '#0f6b43',
+    gradientStart: '#7be7a5',
+    gradientEnd: '#18a058',
+    tierName: '破晓初现',
+  },
+  {
+    max: 100,
+    pageClass: 'theme-sunrise',
+    prompt: '云海翻涌，正宜观赏',
+    accentColor: '#0f6b43',
+    accentSoftColor: '#d8f8e6',
+    accentTextColor: '#0a4f33',
+    gradientStart: '#18a058',
+    gradientEnd: '#0f6b43',
+    tierName: '壮观翻腾',
+  },
+];
+const forecastCardThemes = [
+  { max: 40, cardClass: 'forecast-low', recommendLabel: '不推荐' },
+  { max: 60, cardClass: 'forecast-watch', recommendLabel: '可观望' },
+  { max: 80, cardClass: 'forecast-good', recommendLabel: '推荐' },
+  { max: 100, cardClass: 'forecast-best', recommendLabel: '强推荐' },
+];
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -175,6 +226,16 @@ function weatherFor(probability, offset) {
   return { icon: '☀', label: '晴天' };
 }
 
+function buildCloudVisualTheme(cloudProbability) {
+  const probability = clamp(Number(cloudProbability) || 0, 0, 100);
+  return cloudVisualThemes.find((theme) => probability <= theme.max) || cloudVisualThemes[cloudVisualThemes.length - 1];
+}
+
+function buildForecastCardTheme(cloudProbability) {
+  const probability = clamp(Number(cloudProbability) || 0, 0, 100);
+  return forecastCardThemes.find((theme) => probability <= theme.max) || forecastCardThemes[forecastCardThemes.length - 1];
+}
+
 Page({
   data: {
     mountains,
@@ -196,6 +257,7 @@ Page({
     weatherUpdatedAt: '',
     weatherData: null,
     weatherRequestKey: '',
+    visualTheme: buildCloudVisualTheme(0),
   },
 
   onLoad() {
@@ -214,7 +276,7 @@ Page({
       const weather = weatherFor(probability, offset);
       return {
         offset,
-        theme: cardThemes[offset],
+        cardTheme: buildForecastCardTheme(probability),
         day: date.getDate(),
         week: weekNames[date.getDay()],
         title: offset === 0 ? '目标日' : `第 ${offset + 1} 天`,
@@ -243,7 +305,7 @@ Page({
 
       return {
         offset: index,
-        theme: cardThemes[index] || cardThemes[cardThemes.length - 1],
+        cardTheme: buildForecastCardTheme(probability),
         day: date.getDate(),
         week: weekNames[date.getDay()],
         title: index === 0 ? '目标日' : `第 ${index + 1} 天`,
@@ -309,6 +371,7 @@ Page({
     const hasWeatherData = weatherData && Array.isArray(weatherData.dailyForecasts) && weatherData.dailyForecasts.length;
     const forecasts = hasWeatherData ? this.buildForecastsFromWeather(mountain, weatherData) : this.buildForecasts(mountain);
     const currentForecast = forecasts[0];
+    const visualTheme = buildCloudVisualTheme(currentForecast.probability);
     const guideLines = this.buildGuide(mountain, currentForecast);
     const weatherText = hasWeatherData
       ? `湿度 ${weatherData.current.humidity}% · 风速 ${weatherData.current.windSpeed}m/s · 实况 ${weatherData.current.weatherLabel}`
@@ -319,10 +382,11 @@ Page({
         weather: weatherText,
       },
       currentRoute: route,
+      visualTheme,
       forecasts,
       currentForecast: {
         ...currentForecast,
-        ringStyle: `background: conic-gradient(#D8FF75 ${currentForecast.probability}%, #E8F1ED 0);`,
+        ringStyle: `background: conic-gradient(${visualTheme.accentColor} ${currentForecast.probability}%, rgba(255,255,255,0.34) 0);`,
       },
       factorRows: this.buildFactors(currentForecast),
       guideLines,

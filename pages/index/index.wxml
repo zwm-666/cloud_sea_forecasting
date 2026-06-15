@@ -1,36 +1,79 @@
-<scroll-view class="page" scroll-y enhanced show-scrollbar="{{false}}">
+<scroll-view class="page {{visualTheme.pageClass}}" scroll-y enhanced show-scrollbar="{{false}}">
   <view class="hero">
     <view class="eyebrow">China Cloud Sea Forecast</view>
     <view class="title">中国名山云海预测</view>
-    <view class="subtitle">选择山峰与日期，查看云海概率、路线攻略和出行窗口。</view>
+    <view class="subtitle">{{visualTheme.prompt}}</view>
   </view>
 
-  <view class="search-box">
-    <text class="search-icon">⌕</text>
-    <text class="search-placeholder">搜索山峰、路线、城市</text>
-  </view>
-
-  <view class="form-panel">
-    <view class="field">
-      <view class="label">目的地</view>
-      <picker mode="selector" range="{{mountainNames}}" value="{{mountainIndex}}" bindchange="onMountainChange">
-        <view class="input-like">{{mountainNames[mountainIndex]}}</view>
-      </picker>
+  <view class="glass-card forecast-visual-card">
+    <view class="visual-head">
+      <view>
+        <view class="eyebrow">Cloud Probability</view>
+        <view class="visual-title">{{currentMountain.name}}云海预测</view>
+        <view class="visual-subtitle">{{currentMountain.province}}{{currentMountain.city}} · {{selectedDate}}</view>
+      </view>
+      <view class="tier-pill" style="color: {{visualTheme.accentTextColor}}; background: {{visualTheme.accentSoftColor}};">{{visualTheme.tierName}}</view>
     </view>
-    <view class="field">
-      <view class="label">出发日期</view>
-      <picker mode="date" value="{{selectedDate}}" bindchange="onDateChange">
-        <view class="input-like">{{selectedDate}}</view>
-      </picker>
-    </view>
-  </view>
 
-  <view class="forecast-list">
     <view wx:if="{{weatherError}}" class="weather-error">
       <view class="weather-error-title">天气数据暂不可用</view>
       <view class="weather-error-text">{{weatherError}}</view>
     </view>
-    <view wx:for="{{forecasts}}" wx:key="offset" class="forecast-card {{item.theme}}">
+
+    <view class="probability-stage">
+      <view class="progress-wrap">
+        <t-progress
+          t-class="cloud-progress"
+          theme="circle"
+          percentage="{{currentForecast.probability}}"
+          color="{{visualTheme.accentColor}}"
+          track-color="rgba(255,255,255,0.38)"
+          stroke-width="14"
+          label="{{false}}"
+        />
+        <view class="progress-center">
+          <view class="probability-number" style="color: {{visualTheme.accentColor}};">{{currentForecast.probability}}%</view>
+          <view class="probability-label">云海概率</view>
+        </view>
+      </view>
+      <view class="insight-panel">
+        <view class="insight-prompt">{{visualTheme.prompt}}</view>
+        <view class="insight-copy">观测窗口 {{currentMountain.window}}，日出 {{currentMountain.sunrise}}</view>
+        <view class="data-grid">
+          <view class="data-item">
+            <text>天气</text>
+            <view class="data-value">{{currentForecast.weatherLabel}}</view>
+          </view>
+          <view class="data-item">
+            <text>温差</text>
+            <view class="data-value">{{currentForecast.tempText || currentForecast.temp}}°C</view>
+          </view>
+          <view class="data-item">
+            <text>风速</text>
+            <view class="data-value">{{currentForecast.wind}}m/s</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-panel">
+      <view class="field">
+        <view class="label">目的地</view>
+        <picker mode="selector" range="{{mountainNames}}" value="{{mountainIndex}}" bindchange="onMountainChange">
+          <view class="input-like">{{mountainNames[mountainIndex]}}</view>
+        </picker>
+      </view>
+      <view class="field">
+        <view class="label">出发日期</view>
+        <picker mode="date" value="{{selectedDate}}" bindchange="onDateChange">
+          <view class="input-like">{{selectedDate}}</view>
+        </picker>
+      </view>
+    </view>
+  </view>
+
+  <view class="forecast-list">
+    <view wx:for="{{forecasts}}" wx:key="offset" class="forecast-card {{item.cardTheme.cardClass}}">
       <view class="date-badge">
         <view class="date-week">{{item.week}}</view>
         <view class="date-day">{{item.day}}</view>
@@ -51,15 +94,18 @@
             <view class="metric-value">{{item.wind}}m/s</view>
           </view>
         </view>
-        <view class="weather-pill">
-          <text class="weather-icon">{{item.weatherIcon}}</text>
-          <text>{{item.weatherLabel}}</text>
+        <view class="forecast-footer">
+          <view class="weather-pill">
+            <text class="weather-icon">{{item.weatherIcon}}</text>
+            <text>{{item.weatherLabel}}</text>
+          </view>
+          <view class="recommend-pill">{{item.cardTheme.recommendLabel}}</view>
         </view>
       </view>
     </view>
   </view>
 
-  <view class="card probability-card">
+  <view class="glass-card probability-card">
     <view class="section-head">
       <view>
         <view class="eyebrow">Probability</view>
