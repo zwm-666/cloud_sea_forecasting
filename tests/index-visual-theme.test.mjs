@@ -68,21 +68,18 @@ test('three-day forecast cards are themed by each day probability with greener r
   assert.match(wxss, /#0f6b43/);
 });
 
-test('page-level probability theme also uses greener colors as recommendation increases', async () => {
+test('page background stays neutral while probability accents use greener colors', async () => {
   const [js, wxss] = await Promise.all([
     readFile(new URL('../pages/index/index.js', import.meta.url), 'utf8'),
     readFile(new URL('../pages/index/index.wxss', import.meta.url), 'utf8'),
   ]);
 
   assert.match(js, /pageClass:\s*'theme-sunrise'[\s\S]*?accentColor:\s*'#0f6b43'/);
-  assert.match(js, /pageClass:\s*'theme-sunrise'[\s\S]*?gradientStart:\s*'#18a058'/);
-  assert.match(js, /pageClass:\s*'theme-sunrise'[\s\S]*?gradientEnd:\s*'#0f6b43'/);
   assert.match(js, /ringStyle:\s*`background: conic-gradient\(\$\{visualTheme\.accentColor\}/);
   assert.match(js, /pageClass:\s*'theme-dawn'[\s\S]*?accentColor:\s*'#18a058'/);
-  assert.match(wxss, /\.theme-sunrise\s*\{\s*background:\s*linear-gradient\(135deg,\s*#18a058 0%,\s*#0f6b43 100%\)/);
-  assert.match(wxss, /\.theme-dawn\s*\{\s*background:\s*linear-gradient\(135deg,\s*#7be7a5 0%,\s*#18a058 100%\)/);
-  assert.doesNotMatch(wxss, /\.theme-sunrise\s*\{[\s\S]*?#f6d365/);
-  assert.doesNotMatch(wxss, /\.theme-sunrise\s*\{[\s\S]*?#fda085/);
-  assert.doesNotMatch(wxss, /\.theme-dawn\s*\{[\s\S]*?#a18cd1/);
-  assert.doesNotMatch(wxss, /\.theme-dawn\s*\{[\s\S]*?#fbc2eb/);
+  assert.match(wxss, /\.page\s*\{[\s\S]*?background:\s*linear-gradient\(180deg,\s*#f7fbf8 0%,\s*#eef7f3 48%,\s*#e4f0ec 100%\)/);
+  assert.match(wxss, /\.theme-sunrise\s*\{\s*\}/);
+  assert.match(wxss, /\.theme-dawn\s*\{\s*\}/);
+  assert.doesNotMatch(wxss, /\.theme-sunrise\s*\{[^}]*background/);
+  assert.doesNotMatch(wxss, /\.theme-dawn\s*\{[^}]*background/);
 });
