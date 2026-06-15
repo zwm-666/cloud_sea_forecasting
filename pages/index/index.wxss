@@ -68,8 +68,8 @@ page {
 .form-panel {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-  margin-bottom: 22rpx;
+  gap: 14rpx;
+  margin-bottom: 18rpx;
 }
 
 .field {
@@ -96,30 +96,31 @@ page {
   border-radius: 20rpx;
 }
 
-.text-input {
-  height: 80rpx;
-}
-
-.locate-button {
-  height: 82rpx;
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 800;
-  line-height: 82rpx;
-  background: #155e64;
-  border-radius: 20rpx;
-  box-shadow: 0 16rpx 28rpx rgba(21, 94, 100, 0.18);
-}
-
-.locate-button::after {
-  border: none;
-}
-
 .forecast-list {
   display: flex;
   flex-direction: column;
   gap: 22rpx;
-  margin-bottom: 22rpx;
+  margin-bottom: 20rpx;
+}
+
+.weather-error {
+  padding: 20rpx 22rpx;
+  color: #7a351f;
+  background: #fff3ec;
+  border: 1rpx solid #f2c8b5;
+  border-radius: 20rpx;
+}
+
+.weather-error-title {
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.weather-error-text {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.45;
+  word-break: break-all;
 }
 
 .forecast-card {
@@ -219,7 +220,7 @@ page {
 
 .metric-value {
   margin-top: 6rpx;
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 900;
   white-space: nowrap;
 }

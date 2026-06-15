@@ -11,10 +11,5 @@
   },
   "sitemapLocation": "sitemap.json",
   "style": "v2",
-  "lazyCodeLoading": "requiredComponents",
-  "permission": {
-    "scope.userLocation": {
-      "desc": "用于根据你的位置生成出行指南"
-    }
-  }
+  "lazyCodeLoading": "requiredComponents"
 }

@@ -182,7 +182,6 @@ Page({
     mountainIndex: 0,
     routeIndex: 0,
     selectedDate: formatDate(new Date()),
-    locationText: '上海',
     currentMountain: mountains[0],
     forecasts: [],
     currentForecast: {},
@@ -236,6 +235,11 @@ Page({
     return weatherData.dailyForecasts.map((dayWeather, index) => {
       const date = new Date(`${dayWeather.date || formatDate(addDays(baseDate, index))}T00:00:00`);
       const probability = calculateCloudSeaProbability(mountain, dayWeather);
+      const hasTemperatureRange = Number.isFinite(dayWeather.temperatureMin) && Number.isFinite(dayWeather.temperatureMax);
+      const tempText = hasTemperatureRange
+        ? `${dayWeather.temperatureMin}-${dayWeather.temperatureMax}`
+        : `${dayWeather.temperature}`;
+      const humidity = Number.isFinite(dayWeather.humidity) ? dayWeather.humidity : probability;
 
       return {
         offset: index,
@@ -246,9 +250,10 @@ Page({
         probability,
         level: levelFor(probability),
         temp: dayWeather.temperature,
+        tempText,
         wind: dayWeather.windSpeed,
-        humidity: dayWeather.humidity,
-        lowCloud: clamp(Math.round((dayWeather.humidity + probability) / 2), 35, 96),
+        humidity,
+        lowCloud: clamp(Math.round((humidity + probability) / 2), 35, 96),
         weatherIcon: dayWeather.weatherIcon,
         weatherLabel: dayWeather.weatherLabel,
       };
@@ -256,10 +261,9 @@ Page({
   },
 
   buildGuide(mountain, forecast) {
-    const origin = this.data.locationText || '当前位置';
     const lead = forecast.probability >= 80 ? '建议优先安排日出观景' : '建议保留备选日期';
     return [
-      `从${origin}出发前往${mountain.city}，${lead}，核心观测窗口为 ${mountain.window}。`,
+      `前往${mountain.city}时，${lead}，核心观测窗口为 ${mountain.window}。`,
       `交通建议：先到${mountain.city}或附近高铁站，再换乘景区专线；若当天冲顶，至少提前一晚到山脚。`,
       '装备建议：防风外套、头灯、防滑鞋、热水和离线地图；云雾天气要把返程时间留足。',
     ];
@@ -347,11 +351,13 @@ Page({
       }, () => this.refreshPage(weatherData));
     } catch (error) {
       if (this.data.weatherRequestKey !== requestKey) return;
+      console.error('[weather] refresh failed:', error);
+      const errorMessage = error?.message || '天气数据暂不可用';
       this.setData({
         weatherData: null,
-        weatherError: error?.message || '天气数据暂不可用',
+        weatherError: errorMessage,
       }, () => this.refreshPage(null));
-      wx.showToast({ title: '天气数据暂不可用', icon: 'none' });
+      wx.showToast({ title: errorMessage, icon: 'none' });
     } finally {
       if (this.data.weatherRequestKey === requestKey) {
         this.setData({ weatherLoading: false });
@@ -377,32 +383,6 @@ Page({
     }, () => {
       this.refreshPage(null);
       this.refreshWeather();
-    });
-  },
-
-  onLocationInput(event) {
-    this.setData({
-      locationText: event.detail.value,
-    }, () => {
-      const mountain = this.data.currentMountain;
-      const forecast = this.data.currentForecast;
-      const guideLines = this.buildGuide(mountain, forecast);
-      this.setData({
-        guideLines,
-        guideRows: this.buildGuideRows(guideLines),
-      });
-    });
-  },
-
-  onUseLocation() {
-    wx.getLocation({
-      type: 'gcj02',
-      success: () => {
-        this.setData({ locationText: '我的位置' }, () => this.refreshPage(this.data.weatherData));
-      },
-      fail: () => {
-        wx.showToast({ title: '定位未开启', icon: 'none' });
-      },
     });
   },
 
