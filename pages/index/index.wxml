@@ -23,14 +23,13 @@
         <view class="input-like">{{selectedDate}}</view>
       </picker>
     </view>
-    <view class="field">
-      <view class="label">当前位置</view>
-      <input class="input-like text-input" value="{{locationText}}" bindinput="onLocationInput" placeholder="输入出发城市" />
-    </view>
-    <button class="locate-button" bindtap="onUseLocation">⌖ 使用定位</button>
   </view>
 
   <view class="forecast-list">
+    <view wx:if="{{weatherError}}" class="weather-error">
+      <view class="weather-error-title">天气数据暂不可用</view>
+      <view class="weather-error-text">{{weatherError}}</view>
+    </view>
     <view wx:for="{{forecasts}}" wx:key="offset" class="forecast-card {{item.theme}}">
       <view class="date-badge">
         <view class="date-week">{{item.week}}</view>
@@ -45,7 +44,7 @@
           </view>
           <view>
             <view class="metric-label">温差</view>
-            <view class="metric-value">{{item.temp}}°C</view>
+            <view class="metric-value">{{item.tempText || item.temp}}°C</view>
           </view>
           <view>
             <view class="metric-label">风速</view>
@@ -55,6 +54,24 @@
         <view class="weather-pill">
           <text class="weather-icon">{{item.weatherIcon}}</text>
           <text>{{item.weatherLabel}}</text>
+        </view>
+        <view class="forecast-extra-grid">
+          <view class="extra-metric">
+            <view class="extra-label">云量</view>
+            <view class="extra-value">{{item.cloudText}}</view>
+          </view>
+          <view class="extra-metric">
+            <view class="extra-label">露点</view>
+            <view class="extra-value">{{item.dewPointText}}</view>
+          </view>
+          <view class="extra-metric">
+            <view class="extra-label">气压</view>
+            <view class="extra-value">{{item.pressureText}}</view>
+          </view>
+          <view class="extra-metric">
+            <view class="extra-label">能见度</view>
+            <view class="extra-value">{{item.visibilityText}}</view>
+          </view>
         </view>
       </view>
     </view>
@@ -89,9 +106,8 @@
     <view class="section-head">
       <view>
         <view class="eyebrow">Guide</view>
-        <view class="section-title">定位出行指南</view>
+        <view class="section-title">出行指南</view>
       </view>
-      <view class="small-action">↻</view>
     </view>
     <view class="guide-line" wx:for="{{guideRows}}" wx:key="index">
       <view class="guide-icon">{{item.icon}}</view>

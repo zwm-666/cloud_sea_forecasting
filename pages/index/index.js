@@ -1,5 +1,5 @@
 import { fetchMountainWeather } from '../../services/weather/index.js';
-import { calculateCloudSeaProbability } from '../../services/weather/logic.js';
+import { calculateCloudSeaPrediction } from '../../services/weather/logic.js';
 
 const mountains = [
   {
@@ -161,18 +161,15 @@ function addDays(date, offset) {
   return next;
 }
 
-function levelFor(probability) {
-  if (probability >= 85) return '极佳机会';
-  if (probability >= 72) return '较高机会';
-  if (probability >= 58) return '可尝试';
-  return '谨慎出行';
-}
-
 function weatherFor(probability, offset) {
   if (probability >= 88) return { icon: '☁', label: '多云' };
   if (probability >= 76) return { icon: '☁', label: '阴天' };
   if (probability >= 62) return { icon: '🌦', label: offset === 0 ? '小雨' : '多云' };
   return { icon: '☀', label: '晴天' };
+}
+
+function displayMetric(value, suffix = '') {
+  return Number.isFinite(value) ? `${value}${suffix}` : '--';
 }
 
 Page({
@@ -182,7 +179,6 @@ Page({
     mountainIndex: 0,
     routeIndex: 0,
     selectedDate: formatDate(new Date()),
-    locationText: '上海',
     currentMountain: mountains[0],
     forecasts: [],
     currentForecast: {},
@@ -210,21 +206,53 @@ Page({
       const date = addDays(baseDate, offset);
       const seasonal = Math.round(Math.sin(((date.getMonth() + 1) / 12) * Math.PI) * 7);
       const wave = ((date.getDate() * 7 + offset * 11 + mountain.name.length * 5) % 17) - 8;
-      const probability = clamp(mountain.baseProbability + seasonal + wave, 38, 96);
+      const seedProbability = clamp(mountain.baseProbability + seasonal + wave, 38, 96);
       const wind = Number((2.1 + ((date.getDate() + offset) % 5) * 0.4).toFixed(1));
-      const weather = weatherFor(probability, offset);
+      const weather = weatherFor(seedProbability, offset);
+      const humidity = clamp(seedProbability + 1, 50, 96);
+      const cloud = clamp(seedProbability - 5, 35, 94);
+      const dewPoint = 6 + ((date.getDate() + offset + mountain.name.length) % 8);
+      const pressure = 900 + ((date.getDate() + offset * 3) % 38);
+      const visibility = Number((4 + ((date.getDate() + offset) % 7) * 0.8).toFixed(1));
+      const temp = 8 + ((date.getDate() + offset + mountain.name.length) % 9);
+      const weatherData = {
+        temperature: temp,
+        temperatureMin: temp - 2,
+        temperatureMax: temp + 4,
+        windSpeed: wind,
+        humidity,
+        cloud,
+        dewPoint,
+        dewPointGap: Number((temp - dewPoint).toFixed(1)),
+        visibility,
+        precipitation: weather.label === '小雨' ? 0.8 : 0,
+        weatherCode: weather.label === '小雨' ? 305 : 101,
+      };
+      const prediction = calculateCloudSeaPrediction(mountain, weatherData);
       return {
         offset,
         theme: cardThemes[offset],
         day: date.getDate(),
         week: weekNames[date.getDay()],
         title: offset === 0 ? '目标日' : `第 ${offset + 1} 天`,
-        probability,
-        level: levelFor(probability),
-        temp: 8 + ((date.getDate() + offset + mountain.name.length) % 9),
+        probability: prediction.probability,
+        level: prediction.level,
+        guideLevel: prediction.guideLevel,
+        reasons: prediction.reasons,
+        isRainy: prediction.isRainy,
+        score: prediction.score,
+        temp,
         wind,
-        humidity: clamp(probability + 1, 50, 96),
-        lowCloud: clamp(probability - 5, 35, 94),
+        humidity,
+        cloud,
+        lowCloud: cloud,
+        dewPoint,
+        pressure,
+        visibility,
+        cloudText: displayMetric(cloud, '%'),
+        dewPointText: displayMetric(dewPoint, '°C'),
+        pressureText: displayMetric(pressure, 'hPa'),
+        visibilityText: displayMetric(visibility, 'km'),
         weatherIcon: weather.icon,
         weatherLabel: weather.label,
       };
@@ -235,7 +263,19 @@ Page({
     const baseDate = new Date(`${this.data.selectedDate}T00:00:00`);
     return weatherData.dailyForecasts.map((dayWeather, index) => {
       const date = new Date(`${dayWeather.date || formatDate(addDays(baseDate, index))}T00:00:00`);
-      const probability = calculateCloudSeaProbability(mountain, dayWeather);
+      const previousWeather = index > 0 ? weatherData.dailyForecasts[index - 1] : null;
+      const prediction = calculateCloudSeaPrediction(mountain, dayWeather, { previousWeather });
+      const hasTemperatureRange = Number.isFinite(dayWeather.temperatureMin) && Number.isFinite(dayWeather.temperatureMax);
+      const tempText = hasTemperatureRange
+        ? `${dayWeather.temperatureMin}-${dayWeather.temperatureMax}`
+        : `${dayWeather.temperature}`;
+      const humidity = Number.isFinite(dayWeather.humidity) ? dayWeather.humidity : prediction.probability;
+      const apiCloud = Number.isFinite(dayWeather.cloud) ? dayWeather.cloud : null;
+      const cloud = Number.isFinite(apiCloud) ? apiCloud : clamp(Math.round((humidity + prediction.probability) / 2), 35, 96);
+      const lowCloud = Number.isFinite(dayWeather.lowCloud) ? dayWeather.lowCloud : cloud;
+      const dewPoint = Number.isFinite(dayWeather.dewPoint) ? dayWeather.dewPoint : null;
+      const pressure = Number.isFinite(dayWeather.pressure) ? dayWeather.pressure : null;
+      const visibility = Number.isFinite(dayWeather.visibility) ? dayWeather.visibility : null;
 
       return {
         offset: index,
@@ -243,12 +283,25 @@ Page({
         day: date.getDate(),
         week: weekNames[date.getDay()],
         title: index === 0 ? '目标日' : `第 ${index + 1} 天`,
-        probability,
-        level: levelFor(probability),
+        probability: prediction.probability,
+        level: prediction.level,
+        guideLevel: prediction.guideLevel,
+        reasons: prediction.reasons,
+        isRainy: prediction.isRainy,
+        score: prediction.score,
         temp: dayWeather.temperature,
+        tempText,
         wind: dayWeather.windSpeed,
-        humidity: dayWeather.humidity,
-        lowCloud: clamp(Math.round((dayWeather.humidity + probability) / 2), 35, 96),
+        humidity,
+        cloud,
+        lowCloud,
+        dewPoint,
+        pressure,
+        visibility,
+        cloudText: displayMetric(cloud, '%'),
+        dewPointText: displayMetric(dewPoint, '°C'),
+        pressureText: displayMetric(pressure, 'hPa'),
+        visibilityText: displayMetric(visibility, 'km'),
         weatherIcon: dayWeather.weatherIcon,
         weatherLabel: dayWeather.weatherLabel,
       };
@@ -256,12 +309,25 @@ Page({
   },
 
   buildGuide(mountain, forecast) {
-    const origin = this.data.locationText || '当前位置';
-    const lead = forecast.probability >= 80 ? '建议优先安排日出观景' : '建议保留备选日期';
+    const lead = forecast.isRainy
+      ? '当天有降雨，不建议按完美云海行程冲顶'
+      : forecast.probability >= 75
+        ? '建议优先安排日出观景'
+        : forecast.probability >= 40
+          ? '建议保留备选日期并关注清晨更新'
+          : '不建议专程冲顶，可等待更湿润的转晴窗口';
+    const windAdvice = Number.isFinite(forecast.wind) && forecast.wind > 5
+      ? '风速偏大，山脊和垭口注意防风，云层可能被吹散。'
+      : '风速较小，适合在观景台等待云层稳定。';
+    const weatherAdvice = forecast.isRainy
+      ? '雨中观赏云海条件受限，建议等待雨停后转多云或转晴的清晨。'
+      : forecast.probability >= 75
+      ? `${forecast.guideLevel}，${(forecast.reasons || []).join('、') || '清晨条件较好'}。`
+      : `${forecast.guideLevel}，${(forecast.reasons || []).join('、') || '关键条件不够稳定'}。`;
     return [
-      `从${origin}出发前往${mountain.city}，${lead}，核心观测窗口为 ${mountain.window}。`,
-      `交通建议：先到${mountain.city}或附近高铁站，再换乘景区专线；若当天冲顶，至少提前一晚到山脚。`,
-      '装备建议：防风外套、头灯、防滑鞋、热水和离线地图；云雾天气要把返程时间留足。',
+      `前往${mountain.city}时，${lead}，核心观测窗口为 ${mountain.window}。${weatherAdvice}`,
+      `天气建议：湿度 ${displayMetric(forecast.humidity, '%')}，云量 ${displayMetric(forecast.cloud, '%')}，风速 ${displayMetric(forecast.wind, 'm/s')}。${windAdvice}`,
+      `装备建议：${forecast.isRainy ? '雨具、防滑鞋和备用路线优先；若清晨仍有降雨，建议推迟到雨后转晴时段。' : forecast.probability >= 60 ? '防风外套、头灯、防滑鞋、热水和离线地图；云雾天气要把返程时间留足。' : '优先准备雨具、防滑鞋和备用路线；若清晨仍降雨或能见度很差，建议推迟观景。'}`,
     ];
   },
 
@@ -279,7 +345,7 @@ Page({
       { name: '湿度', value: `${forecast.humidity}%`, width: `${forecast.humidity}%` },
       { name: '温差', value: `${forecast.temp}°C`, width: `${clamp(forecast.temp * 7, 20, 100)}%` },
       { name: '风速', value: `${forecast.wind}m/s`, width: `${clamp(100 - forecast.wind * 10, 20, 100)}%` },
-      { name: '低云层', value: `${forecast.lowCloud}%`, width: `${forecast.lowCloud}%` },
+      { name: '云量', value: `${forecast.lowCloud}%`, width: `${forecast.lowCloud}%` },
     ];
   },
 
@@ -306,9 +372,7 @@ Page({
     const forecasts = hasWeatherData ? this.buildForecastsFromWeather(mountain, weatherData) : this.buildForecasts(mountain);
     const currentForecast = forecasts[0];
     const guideLines = this.buildGuide(mountain, currentForecast);
-    const weatherText = hasWeatherData
-      ? `湿度 ${weatherData.current.humidity}% · 风速 ${weatherData.current.windSpeed}m/s · 实况 ${weatherData.current.weatherLabel}`
-      : mountain.weather;
+    const weatherText = `湿度 ${displayMetric(currentForecast.humidity, '%')} · 云量 ${displayMetric(currentForecast.cloud, '%')} · 风速 ${displayMetric(currentForecast.wind, 'm/s')} · ${currentForecast.weatherLabel}`;
     this.setData({
       currentMountain: {
         ...mountain,
@@ -347,11 +411,13 @@ Page({
       }, () => this.refreshPage(weatherData));
     } catch (error) {
       if (this.data.weatherRequestKey !== requestKey) return;
+      console.error('[weather] refresh failed:', error);
+      const errorMessage = error?.message || '天气数据暂不可用';
       this.setData({
         weatherData: null,
-        weatherError: error?.message || '天气数据暂不可用',
+        weatherError: errorMessage,
       }, () => this.refreshPage(null));
-      wx.showToast({ title: '天气数据暂不可用', icon: 'none' });
+      wx.showToast({ title: errorMessage, icon: 'none' });
     } finally {
       if (this.data.weatherRequestKey === requestKey) {
         this.setData({ weatherLoading: false });
@@ -377,32 +443,6 @@ Page({
     }, () => {
       this.refreshPage(null);
       this.refreshWeather();
-    });
-  },
-
-  onLocationInput(event) {
-    this.setData({
-      locationText: event.detail.value,
-    }, () => {
-      const mountain = this.data.currentMountain;
-      const forecast = this.data.currentForecast;
-      const guideLines = this.buildGuide(mountain, forecast);
-      this.setData({
-        guideLines,
-        guideRows: this.buildGuideRows(guideLines),
-      });
-    });
-  },
-
-  onUseLocation() {
-    wx.getLocation({
-      type: 'gcj02',
-      success: () => {
-        this.setData({ locationText: '我的位置' }, () => this.refreshPage(this.data.weatherData));
-      },
-      fail: () => {
-        wx.showToast({ title: '定位未开启', icon: 'none' });
-      },
     });
   },
 
