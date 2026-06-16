@@ -42,6 +42,7 @@ function buildQWeatherRequestUrls({ apiHost, mountain }) {
 
   return {
     nowUrl: `https://${host}/v7/weather/now?${encodeQuery(commonParams)}`,
+    hourlyUrl: `https://${host}/v7/weather/72h?${encodeQuery(commonParams)}`,
     dailyUrl: `https://${host}/v7/weather/7d?${encodeQuery(commonParams)}`,
   };
 }

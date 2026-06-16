@@ -25,6 +25,10 @@ test('qweather cloud function builds project API host URLs', () => {
     urls.dailyUrl,
     'https://abc1234xyz.def.qweatherapi.com/v7/weather/7d?location=118.17%2C30.13&lang=zh&unit=m',
   );
+  assert.equal(
+    urls.hourlyUrl,
+    'https://abc1234xyz.def.qweatherapi.com/v7/weather/72h?location=118.17%2C30.13&lang=zh&unit=m',
+  );
 });
 
 test('qweather cloud function rejects legacy shared API hosts', () => {

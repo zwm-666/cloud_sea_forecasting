@@ -165,17 +165,24 @@ exports.main = async (event = {}) => {
 
     const urls = buildQWeatherRequestUrls({ apiHost: config.apiHost, mountain });
     const token = await getJwt(config);
-    const [nowPayload, dailyPayload] = await Promise.all([
+    const [nowPayload, hourlyResult, dailyPayload] = await Promise.all([
       requestJson(urls.nowUrl, token),
+      requestJson(urls.hourlyUrl, token).catch((error) => ({
+        code: 'request_failed',
+        message: error.message || 'QWeather hourly request failed',
+      })),
       requestJson(urls.dailyUrl, token),
     ]);
+    const hourlyPayload = hourlyResult?.code === '200' ? hourlyResult : null;
 
     return {
       ok: true,
       provider: 'qweather',
       payload: {
         nowPayload,
+        hourlyPayload,
         dailyPayload,
+        hourlyWarning: hourlyPayload ? '' : hourlyResult?.message || `QWeather hourly request failed with code ${hourlyResult?.code || 'unknown'}`,
       },
     };
   } catch (error) {
