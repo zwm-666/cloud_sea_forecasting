@@ -111,3 +111,18 @@ test('forecast weekday labels are calculated from actual selected dates', async 
   assert.match(js, /week:\s*weekNames\[date\.getDay\(\)\]/);
   assert.doesNotMatch(js, /new Date\(`\$\{this\.data\.selectedDate\}T00:00:00`\)/);
 });
+
+test('weather-driven sections stay blank until real weather data is loaded', async () => {
+  const [js, wxml] = await Promise.all([
+    readFile(new URL('../pages/index/index.js', import.meta.url), 'utf8'),
+    readFile(new URL('../pages/index/index.wxml', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(js, /buildForecasts\(\)\s*\{[\s\S]*?return \[\];/);
+  assert.match(js, /hasWeatherData:/);
+  assert.doesNotMatch(js, /const fallbackProbability = 45/);
+  assert.doesNotMatch(js, /const probability = clamp\(mountain\.baseProbability \+ seasonal \+ wave,\s*38,\s*96\)/);
+  assert.match(wxml, /<view wx:if="\{\{hasWeatherData\}\}" class="probability-stage">/);
+  assert.match(wxml, /<view wx:if="\{\{hasWeatherData\}\}" class="forecast-list">/);
+  assert.match(wxml, /<view wx:if="\{\{hasWeatherData\}\}" class="glass-card probability-card">/);
+});
