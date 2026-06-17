@@ -71,10 +71,75 @@ function hourlyItemsForDate(hourlyPayload, date) {
   return hourlyPayload.hourly.filter((item) => dateFromFxTime(item.fxTime) === date);
 }
 
+function parseClockMinutes(value) {
+  const match = String(value || '').match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function parseFxTimeMinutes(value) {
+  return parseClockMinutes(String(value || '').slice(11, 16));
+}
+
+function sunriseWindow(mountain) {
+  const windowMatch = String(mountain?.window || '').match(/(\d{1,2}:\d{2})\s*[-~至]\s*(\d{1,2}:\d{2})/);
+  if (windowMatch) {
+    return {
+      start: parseClockMinutes(windowMatch[1]),
+      end: parseClockMinutes(windowMatch[2]),
+      label: `${windowMatch[1]}-${windowMatch[2]}`,
+    };
+  }
+
+  const sunrise = parseClockMinutes(mountain?.sunrise);
+  if (Number.isFinite(sunrise)) {
+    const start = Math.max(0, sunrise - 45);
+    const end = Math.min(24 * 60 - 1, sunrise + 90);
+    return {
+      start,
+      end,
+      label: `${String(Math.floor(start / 60)).padStart(2, '0')}:${String(start % 60).padStart(2, '0')}-${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`,
+    };
+  }
+
+  return {
+    start: 5 * 60,
+    end: 7 * 60 + 30,
+    label: '05:00-07:30',
+  };
+}
+
+function minutesInWindow(minutes, window) {
+  if (!Number.isFinite(minutes) || !Number.isFinite(window.start) || !Number.isFinite(window.end)) return false;
+  if (window.end >= window.start) return minutes >= window.start && minutes <= window.end;
+  return minutes >= window.start || minutes <= window.end;
+}
+
+function hourlyItemsForSunriseWindow(hourlyPayload, date, mountain) {
+  const items = hourlyItemsForDate(hourlyPayload, date);
+  const window = sunriseWindow(mountain);
+  return items.filter((item) => minutesInWindow(parseFxTimeMinutes(item.fxTime), window));
+}
+
+function modalNumber(values, fallback = null) {
+  const counts = new Map();
+  values
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .forEach((value) => counts.set(value, (counts.get(value) || 0) + 1));
+  if (!counts.size) return fallback;
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+}
+
 function summarizeHourly(items) {
   if (!items.length) return {};
 
   const windSpeedKmh = average(items.map((item) => item.windSpeed));
+  const weatherCode = modalNumber(items.map((item) => item.icon));
+  const weatherText = items.find((item) => Number(item.icon) === weatherCode)?.text || items[0]?.text || '';
 
   return {
     temperature: roundOptional(average(items.map((item) => item.temp))),
@@ -84,6 +149,8 @@ function summarizeHourly(items) {
     precipitation: roundOptional(sum(items.map((item) => item.precip), 0), 1),
     pressure: roundOptional(average(items.map((item) => item.pressure))),
     dewPoint: roundOptional(average(items.map((item) => item.dew)), 1),
+    weatherCode,
+    weatherText,
   };
 }
 
@@ -218,209 +285,144 @@ function isWetCloudyCode(code) {
   return [101, 102, 103, 104, 151, 152, 153, 154, 501, 502, 514, 515].includes(code);
 }
 
-function scorePrecipitation(precipitation) {
-  if (!Number.isFinite(precipitation) || precipitation <= 0) return 0;
-  if (precipitation <= 1) return 6;
-  if (precipitation <= 5) return 14;
-  if (precipitation <= 15) return 20;
-  if (precipitation <= 30) return 12;
-  return 6;
+function isFogCode(code) {
+  return code >= 500 && code <= 515;
 }
 
-function scoreWetCloud(humidity, cloud) {
-  if (humidity >= 85 && cloud >= 70) return 8;
-  if (humidity >= 75 && cloud >= 60) return 5;
-  if (humidity >= 65 && cloud >= 50) return 2;
+function scoreBand(value, idealMin, idealMax, hardMin, hardMax, maxScore) {
+  if (!Number.isFinite(value)) return Math.round(maxScore * 0.45);
+  if (value >= idealMin && value <= idealMax) return maxScore;
+  if (value < hardMin || value > hardMax) return 0;
+  if (value < idealMin) {
+    return Math.round(maxScore * ((value - hardMin) / (idealMin - hardMin)));
+  }
+  return Math.round(maxScore * ((hardMax - value) / (hardMax - idealMax)));
+}
+
+function scoreMinimum(value, ideal, hardMin, maxScore) {
+  if (!Number.isFinite(value)) return Math.round(maxScore * 0.45);
+  if (value >= ideal) return maxScore;
+  if (value <= hardMin) return 0;
+  return Math.round(maxScore * ((value - hardMin) / (ideal - hardMin)));
+}
+
+function scoreMaximum(value, idealMax, hardMax, maxScore) {
+  if (!Number.isFinite(value)) return Math.round(maxScore * 0.45);
+  if (value <= idealMax) return maxScore;
+  if (value >= hardMax) return 0;
+  return Math.round(maxScore * ((hardMax - value) / (hardMax - idealMax)));
+}
+
+function scoreHumidityForSunrise(humidity) {
+  return scoreMinimum(humidity, 88, 62, 24);
+}
+
+function scoreDewGapForSunrise(gap) {
+  return scoreMaximum(gap, 2.5, 9, 18);
+}
+
+function scoreWindForSunrise(windSpeed) {
+  return scoreMaximum(windSpeed, 3.2, 9, 16);
+}
+
+function scoreCloudForSunrise(cloud) {
+  return scoreBand(cloud, 35, 90, 10, 100, 12);
+}
+
+function scoreVisibilityForSunrise(visibility) {
+  if (!Number.isFinite(visibility)) return 4;
+  if (visibility < 0.1) return 1;
+  if (visibility <= 1.5) return 8;
+  if (visibility <= 5) return 6;
+  if (visibility <= 10) return 3;
   return 0;
 }
 
-function scoreHumidity(humidity) {
-  if (humidity >= 95) return 20;
-  if (humidity >= 90) return 17;
-  if (humidity >= 85) return 13;
-  if (humidity >= 80) return 9;
-  if (humidity >= 70) return 5;
-  return 0;
-}
-
-function scoreDewPointGap(gap) {
-  if (!Number.isFinite(gap)) return 0;
-  if (gap <= 1) return 15;
-  if (gap <= 2) return 12;
-  if (gap <= 3) return 8;
-  if (gap <= 5) return 4;
-  return 0;
-}
-
-function scoreWindSpeed(windSpeed) {
-  if (windSpeed <= 1.5) return 15;
-  if (windSpeed <= 3) return 12;
-  if (windSpeed <= 5) return 6;
-  if (windSpeed <= 7) return 2;
-  return 0;
-}
-
-function scoreCloudCover(cloud) {
-  if (!Number.isFinite(cloud)) return 0;
-  if (cloud >= 20 && cloud <= 70) return 10;
-  if (cloud > 70 && cloud <= 90) return 6;
-  if (cloud >= 5 && cloud < 20) return 5;
-  if (cloud > 90) return 2;
-  return 1;
-}
-
-function scoreNightCooling(weather, previousWeather) {
+function scoreNightCoolingForSunrise(weather, previousWeather) {
   let cooling = null;
   if (Number.isFinite(previousWeather?.temperatureMax) && Number.isFinite(weather?.temperatureMin)) {
     cooling = previousWeather.temperatureMax - weather.temperatureMin;
   } else if (Number.isFinite(weather?.temperatureMax) && Number.isFinite(weather?.temperatureMin)) {
-    cooling = (weather.temperatureMax - weather.temperatureMin) * 0.65;
+    cooling = weather.temperatureMax - weather.temperatureMin;
   }
 
-  if (!Number.isFinite(cooling)) return 0;
-  if (cooling >= 6) return 10;
-  if (cooling >= 4) return 8;
-  if (cooling >= 2) return 5;
-  if (cooling > 0) return 2;
-  return 0;
+  return scoreMinimum(cooling, 5, 0, 10);
 }
 
-function parseAltitude(value) {
-  const match = String(value || '').match(/-?\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : null;
-}
-
-function scoreTerrain(mountain) {
-  const altitudeDiff = Number(mountain?.altitudeDiff);
-  if (Number.isFinite(altitudeDiff)) {
-    if (altitudeDiff >= 600) return 10;
-    if (altitudeDiff >= 400) return 8;
-    if (altitudeDiff >= 200) return 5;
-    if (altitudeDiff >= 100) return 2;
-    return 0;
-  }
-
-  const altitude = parseAltitude(mountain?.altitude);
-  if (!Number.isFinite(altitude)) return 5;
-  if (altitude >= 2500) return 10;
-  if (altitude >= 1600) return 8;
-  if (altitude >= 1000) return 5;
-  if (altitude >= 600) return 2;
-  return 0;
-}
-
-function scoreVisibility(visibility) {
-  if (!Number.isFinite(visibility)) return 0;
-  if (visibility < 0.2) return -5;
-  if (visibility <= 2) return 5;
-  if (visibility <= 5) return 3;
-  if (visibility <= 10) return 1;
-  return 0;
-}
-
-function scoreWeatherTransition(weather, previousWeather) {
-  const currentCode = numericWeatherCode(weather);
+function scoreMoistureSupply(weather, previousWeather) {
   const previousCode = numericWeatherCode(previousWeather);
-  const currentClearLike = isClearLikeCode(currentCode);
+  const previousPrecipitation = Number.isFinite(previousWeather?.precipitation) ? previousWeather.precipitation : null;
+  const previousHumidity = Number.isFinite(previousWeather?.humidity) ? previousWeather.humidity : null;
+  const previousCloud = Number.isFinite(previousWeather?.cloud) ? previousWeather.cloud : null;
 
-  if (previousWeather) {
-    if (isRainyCode(previousCode) && currentClearLike) return 15;
-    if (isRainyCode(previousCode) && [104, 154].includes(currentCode)) return 12;
-    if (isRainyCode(previousCode) && isWetCloudyCode(currentCode)) return 10;
-    if ([104, 154].includes(previousCode) && currentClearLike) return 13;
-    if (isWetCloudyCode(previousCode) && currentClearLike) return 10;
-  }
-
-  if (isRainyCode(currentCode)) return 0;
-  if (isWetCloudyCode(currentCode)) return 8;
-  if ([100, 150].includes(currentCode)) return 3;
-  return 0;
+  let score = 0;
+  if (Number.isFinite(previousPrecipitation)) score += scoreBand(previousPrecipitation, 0.5, 8, 0, 25, 7);
+  if (isRainyCode(previousCode)) score += 3;
+  if (Number.isFinite(previousHumidity)) score += scoreMinimum(previousHumidity, 85, 60, 3);
+  if (Number.isFinite(previousCloud)) score += scoreBand(previousCloud, 55, 90, 20, 100, 2);
+  if (!previousWeather) score = 4;
+  return clamp(Math.round(score), 0, 12);
 }
 
-function sigmoidProbability(score) {
-  const probability = 1 / (1 + Math.exp(-0.09 * (score - 58)));
-  return Math.min(98, Math.max(2, Math.round(probability * 100)));
+function sunriseRainGate(weatherCode, precipitation) {
+  if (isBadRainCode(weatherCode) || precipitation >= 3) {
+    return { cap: 8, isRainy: true, label: '日出窗口有明显降水' };
+  }
+  if (isRainyCode(weatherCode) || precipitation >= 0.5) {
+    return { cap: 18, isRainy: true, label: '日出窗口可能下雨' };
+  }
+  if (precipitation > 0.05) {
+    return { cap: 55, isRainy: true, label: '日出窗口有零星降水' };
+  }
+  return { cap: 98, isRainy: false, label: '日出窗口无降水' };
+}
+
+function scoreWeatherState(weatherCode) {
+  if (isFogCode(weatherCode)) return 7;
+  if (isWetCloudyCode(weatherCode)) return 5;
+  if (isClearLikeCode(weatherCode)) return 3;
+  return 2;
+}
+
+function perfectSunriseProbability(score, rainCap) {
+  const probability = Math.round(clamp((score - 15) * 1.3, 2, 98));
+  return Math.min(probability, rainCap);
+}
+
+function sunriseQualityCap({ humidity, dewGap, windSpeed, cloud }) {
+  const cloudUsable = !Number.isFinite(cloud) || (cloud >= 25 && cloud <= 95);
+  if (humidity >= 90 && dewGap <= 2 && windSpeed <= 3 && cloudUsable) return 98;
+  if (humidity >= 85 && dewGap <= 3.5 && windSpeed <= 4.5 && cloudUsable) return 82;
+  if (humidity >= 78 && dewGap <= 5 && windSpeed <= 6 && cloudUsable) return 65;
+  return 38;
 }
 
 function cloudSeaLevel(probability) {
-  if (probability >= 90) return { level: '极高机会', guideLevel: '极有可能出现云海' };
-  if (probability >= 75) return { level: '很高机会', guideLevel: '云海概率很高' };
-  if (probability >= 60) return { level: '较高机会', guideLevel: '云海概率较高' };
-  if (probability >= 40) return { level: '中等机会', guideLevel: '云海概率中等' };
-  if (probability >= 20) return { level: '一定机会', guideLevel: '有一定机会出现云海' };
-  return { level: '概率较低', guideLevel: '云海概率较低' };
+  if (probability >= 90) return { level: '完美机会极高', guideLevel: '日出完美云海窗口非常好' };
+  if (probability >= 75) return { level: '完美机会高', guideLevel: '日出完美云海概率高' };
+  if (probability >= 60) return { level: '较有机会', guideLevel: '日出云海条件较好' };
+  if (probability >= 40) return { level: '机会一般', guideLevel: '日出云海条件不够稳定' };
+  if (probability >= 20) return { level: '机会偏低', guideLevel: '完美观赏条件偏弱' };
+  return { level: '不适合冲顶', guideLevel: '日出完美云海概率低' };
 }
 
-function viewingRainCap(weatherCode, precipitation) {
-  if (isBadRainCode(weatherCode) || precipitation >= 10) return 8;
-  if (precipitation >= 3) return 12;
-  if (isRainyCode(weatherCode)) return 18;
-  if (precipitation > 0.1) return 45;
-  if (precipitation > 0) return 55;
-  return 98;
-}
-
-function viewingProbabilityFloor({ weatherCode, precipitation, previousWeather, humidity, windSpeed, cloud }) {
-  if (viewingRainCap(weatherCode, precipitation) < 98) return 0;
-  const previousCode = numericWeatherCode(previousWeather);
-
-  if (previousWeather && isRainyCode(previousCode)) {
-    if (isClearLikeCode(weatherCode)) return 72;
-    if (isWetCloudyCode(weatherCode)) return 55;
-    return 45;
-  }
-
-  if (isWetCloudyCode(weatherCode)) {
-    if (humidity >= 85 && windSpeed <= 3) return 35;
-    if (humidity >= 75 && windSpeed <= 5) return 25;
-    return 18;
-  }
-
-  if (isClearLikeCode(weatherCode) && humidity >= 85 && windSpeed <= 3 && cloud >= 20 && cloud <= 80) return 45;
-  return 0;
-}
-
-function scorePenalty({ weather, humidity, windSpeed, cloud, dewGap, precipitation, weatherCode }) {
-  const penalties = [];
-  if (isBadRainCode(weatherCode) || precipitation >= 10) penalties.push(-40);
-  else if (precipitation >= 3) penalties.push(-35);
-  else if (isRainyCode(weatherCode)) penalties.push(-30);
-  else if (precipitation > 0.1) penalties.push(-15);
-  else if (precipitation > 0) penalties.push(-8);
-  if (windSpeed > 7) penalties.push(-20);
-  if (humidity < 65) penalties.push(-20);
-  if (Number.isFinite(dewGap) && dewGap > 7) penalties.push(-15);
-  if (cloud > 95 && [104, 154].includes(weatherCode)) penalties.push(-10);
-  if (precipitation > 30 && (isRainyCode(weatherCode) || [104, 154].includes(weatherCode))) penalties.push(-20);
-  if ([100, 150].includes(weatherCode) && humidity < 60) penalties.push(-15);
-  if (Number.isFinite(weather?.temperature) && weather.temperature >= 28 && humidity < 75) penalties.push(-6);
-
-  return Math.max(-40, penalties.reduce((total, penalty) => total + penalty, 0));
-}
-
-function mainReasons(scores, weather) {
+function mainReasons(scores, weather, rainGate) {
   const reasons = [];
-  const weatherCode = numericWeatherCode(weather);
-  const precipitation = Number.isFinite(weather?.precipitation) ? weather.precipitation : 0;
-  if (isRainyCode(weatherCode) || precipitation > 0) reasons.push('当天降雨影响观赏');
-  if (scores.moistureScore >= 12) reasons.push('水汽积累较好');
-  if (scores.transitionScore >= 10) reasons.push('阴雨后转多云/晴');
-  if (scores.humidityScore >= 13) reasons.push('清晨湿度高');
-  if (scores.dewPointScore >= 8) reasons.push('露点差小');
-  if (scores.windScore >= 12) reasons.push('风速较小');
-  if (scores.cloudScore >= 8) reasons.push('云量适中');
-  if (scores.terrainScore >= 8) reasons.push('观景点海拔有利');
-  if (scores.penaltyScore <= -15) reasons.push('存在不利天气');
-  if (!reasons.length && Number.isFinite(weather?.humidity)) reasons.push('天气条件一般');
+  if (rainGate.isRainy) reasons.push(rainGate.label);
+  if (scores.humidityScore >= 18) reasons.push('日出湿度接近饱和');
+  if (scores.dewPointScore >= 14) reasons.push('温度露点差很小');
+  if (scores.windScore >= 12) reasons.push('日出风速小');
+  if (scores.cloudScore >= 9) reasons.push('云量适合成海并留出日出光线');
+  if (scores.moistureScore >= 9) reasons.push('前一日水汽补给好');
+  if (scores.coolingScore >= 8) reasons.push('夜间降温有利凝结');
+  if (scores.visibilityScore >= 6) reasons.push('近地雾云信号明显');
+  if (!reasons.length && Number.isFinite(weather?.humidity)) reasons.push('日出关键条件一般');
   return reasons.slice(0, 4);
 }
 
 export function calculateCloudSeaPrediction(mountain, weather = {}, context = {}) {
   const previousWeather = context.previousWeather || weather.previousWeather || null;
   const weatherCode = numericWeatherCode(weather);
-  const previousHumidity = Number.isFinite(previousWeather?.humidity) ? previousWeather.humidity : null;
-  const previousCloud = Number.isFinite(previousWeather?.cloud) ? previousWeather.cloud : null;
-  const previousPrecipitation = Number.isFinite(previousWeather?.precipitation) ? previousWeather.precipitation : null;
   const humidity = Number.isFinite(weather?.humidity) ? weather.humidity : 70;
   const cloud = Number.isFinite(weather?.cloud) ? weather.cloud : 50;
   const windSpeed = Number.isFinite(weather?.windSpeed) ? weather.windSpeed : 5;
@@ -430,77 +432,57 @@ export function calculateCloudSeaPrediction(mountain, weather = {}, context = {}
   const dewGap = Number.isFinite(weather?.dewPointGap) ? weather.dewPointGap : dewPointGap(temperature, dewPoint);
   const visibility = Number.isFinite(weather?.visibility) ? weather.visibility : null;
 
-  const moistureSourcePrecipitation = Number.isFinite(previousPrecipitation) ? previousPrecipitation : precipitation;
-  const moistureSourceHumidity = Number.isFinite(previousHumidity) ? previousHumidity : humidity;
-  const moistureSourceCloud = Number.isFinite(previousCloud) ? previousCloud : cloud;
-  const moistureMultiplier = previousWeather ? 1 : 0.7;
-  const moistureScore = Math.round(Math.min(
-    20,
-    (scorePrecipitation(moistureSourcePrecipitation) + scoreWetCloud(moistureSourceHumidity, moistureSourceCloud)) * moistureMultiplier,
-  ));
-  const transitionScore = scoreWeatherTransition(weather, previousWeather);
-  const humidityScore = scoreHumidity(humidity);
-  const dewPointScore = scoreDewPointGap(dewGap);
-  const windScore = scoreWindSpeed(windSpeed);
-  const cloudScore = scoreCloudCover(cloud);
-  const coolingScore = scoreNightCooling(weather, previousWeather);
-  const terrainScore = scoreTerrain(mountain);
-  const visibilityScore = scoreVisibility(visibility);
-  const penaltyScore = scorePenalty({
-    weather,
-    humidity,
-    windSpeed,
-    cloud,
-    dewGap,
-    precipitation,
-    weatherCode,
-  });
+  const rainGate = sunriseRainGate(weatherCode, precipitation);
+  const humidityScore = scoreHumidityForSunrise(humidity);
+  const dewPointScore = scoreDewGapForSunrise(dewGap);
+  const windScore = scoreWindForSunrise(windSpeed);
+  const cloudScore = scoreCloudForSunrise(cloud);
+  const moistureScore = scoreMoistureSupply(weather, previousWeather);
+  const coolingScore = scoreNightCoolingForSunrise(weather, previousWeather);
+  const visibilityScore = scoreVisibilityForSunrise(visibility);
+  const weatherStateScore = scoreWeatherState(weatherCode);
 
-  const rawScore = moistureScore
-    + transitionScore
-    + humidityScore
+  const rawScore = humidityScore
     + dewPointScore
     + windScore
     + cloudScore
+    + moistureScore
     + coolingScore
-    + terrainScore
     + visibilityScore
-    + penaltyScore;
+    + weatherStateScore;
   const score = Math.round(clamp(rawScore, 0, 100));
-  const rainCap = viewingRainCap(weatherCode, precipitation);
-  const probabilityFloor = viewingProbabilityFloor({
-    weatherCode,
-    precipitation,
-    previousWeather,
+  const qualityCap = sunriseQualityCap({
     humidity,
+    dewGap,
     windSpeed,
     cloud,
   });
-  const probability = Math.min(Math.max(sigmoidProbability(score), probabilityFloor), rainCap);
+  const probability = Math.min(perfectSunriseProbability(score, rainGate.cap), qualityCap);
   const level = cloudSeaLevel(probability);
   const scores = {
     moistureScore,
-    transitionScore,
     humidityScore,
     dewPointScore,
     windScore,
     cloudScore,
     coolingScore,
-    terrainScore,
     visibilityScore,
-    penaltyScore,
+    weatherStateScore,
   };
 
   return {
     score,
     probability,
-    rainCap,
-    probabilityFloor,
-    isRainy: rainCap < 98,
+    rainCap: rainGate.cap,
+    qualityCap,
+    probabilityFloor: 0,
+    rainGate,
+    isRainy: rainGate.isRainy,
     level: level.level,
     guideLevel: level.guideLevel,
-    reasons: mainReasons(scores, weather),
+    reasons: mainReasons(scores, weather, rainGate),
     scores,
+    perfectWindow: weather.sunriseWindow || context.sunriseWindow || sunriseWindow(mountain).label,
   };
 }
 
@@ -510,7 +492,7 @@ export function calculateCloudSeaProbability(mountain, weather, context = {}) {
 
 export function normalizeQWeatherResponse(payload, options = {}) {
   const { nowPayload, hourlyPayload, dailyPayload } = payload || {};
-  const { selectedDate, now = Date.now() } = options;
+  const { mountain, selectedDate, now = Date.now() } = options;
   if (!selectedDate) {
     throw new Error('selectedDate is required');
   }
@@ -538,16 +520,19 @@ export function normalizeQWeatherResponse(payload, options = {}) {
       throw new Error(`QWeather daily data missing date ${date}`);
     }
 
-    const weatherCode = Number(daily.iconDay || daily.iconNight);
-    const weather = displayWeather(weatherCode, daily.textDay || daily.textNight);
     const temperatureMin = optionalNumber(daily.tempMin);
     const temperatureMax = optionalNumber(daily.tempMax);
     const windSpeedKmh = optionalNumber(daily.windSpeedDay ?? daily.windSpeedNight, 0);
-    const hourly = summarizeHourly(hourlyItemsForDate(hourlyPayload, date));
-    const temperature = round((temperatureMin + temperatureMax) / 2);
-    const humidity = optionalNumber(hourly.humidity, optionalNumber(daily.humidity));
-    const cloud = optionalNumber(hourly.cloud, optionalNumber(daily.cloud));
-    const dewPoint = optionalNumber(hourly.dewPoint, calculateDewPoint(temperature, humidity));
+    const sunriseWindowInfo = sunriseWindow(mountain);
+    const sunriseItems = hourlyItemsForSunriseWindow(hourlyPayload, date, mountain);
+    const sunriseHourly = summarizeHourly(sunriseItems);
+    const dayHourly = summarizeHourly(hourlyItemsForDate(hourlyPayload, date));
+    const weatherCode = Number(sunriseHourly.weatherCode ?? daily.iconDay ?? daily.iconNight);
+    const weather = displayWeather(weatherCode, sunriseHourly.weatherText || daily.textDay || daily.textNight);
+    const temperature = optionalNumber(sunriseHourly.temperature, round((temperatureMin + temperatureMax) / 2));
+    const humidity = optionalNumber(sunriseHourly.humidity, optionalNumber(dayHourly.humidity, optionalNumber(daily.humidity)));
+    const cloud = optionalNumber(sunriseHourly.cloud, optionalNumber(dayHourly.cloud, optionalNumber(daily.cloud)));
+    const dewPoint = optionalNumber(sunriseHourly.dewPoint, optionalNumber(dayHourly.dewPoint, calculateDewPoint(temperature, humidity)));
     const gap = dewPointGap(temperature, dewPoint);
     const visibility = optionalNumber(daily.vis);
 
@@ -557,19 +542,21 @@ export function normalizeQWeatherResponse(payload, options = {}) {
       temperature,
       temperatureMin,
       temperatureMax,
-      precipitation: optionalNumber(hourly.precipitation, optionalNumber(daily.precip, 0)),
+      precipitation: optionalNumber(sunriseHourly.precipitation, optionalNumber(dayHourly.precipitation, optionalNumber(daily.precip, 0))),
       humidity,
       cloud,
-      windSpeed: Number.isFinite(hourly.windSpeed) ? hourly.windSpeed : round(windSpeedKmh / 3.6, 1),
+      windSpeed: Number.isFinite(sunriseHourly.windSpeed) ? sunriseHourly.windSpeed : (Number.isFinite(dayHourly.windSpeed) ? dayHourly.windSpeed : round(windSpeedKmh / 3.6, 1)),
       dewPoint,
       dewPointGap: gap,
-      pressure: optionalNumber(hourly.pressure, optionalNumber(daily.pressure)),
+      pressure: optionalNumber(sunriseHourly.pressure, optionalNumber(dayHourly.pressure, optionalNumber(daily.pressure))),
       visibility,
       lowCloud: cloud,
       lowCloudSource: 'cloud',
       weatherCode,
       weatherLabel: weather.weatherLabel,
       weatherIcon: weather.weatherIcon,
+      sunriseWindow: sunriseWindowInfo.label,
+      sunriseSampleCount: sunriseItems.length,
     };
   });
 
