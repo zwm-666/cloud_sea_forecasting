@@ -1,6 +1,62 @@
 import { fetchMountainWeather } from '../../services/weather/index.js';
 import { calculateCloudSeaPrediction } from '../../services/weather/logic.js';
 
+function createMountain({
+  name,
+  slug,
+  province,
+  city,
+  latitude,
+  longitude,
+  altitude,
+  sunrise,
+  window,
+  baseProbability,
+  best = '主峰观景台',
+  routeName = '核心观景线',
+  difficulty = '中等',
+}) {
+  return {
+    name,
+    slug,
+    province,
+    city,
+    latitude,
+    longitude,
+    altitude,
+    sunrise,
+    window,
+    weather: '湿度 -- · 风速 -- · 低云层 --',
+    baseProbability,
+    routes: [
+      {
+        name: routeName,
+        time: '4h',
+        distance: '6km',
+        difficulty,
+        best,
+        tips: [
+          `优先选择${best}或附近高海拔开阔点等待日出云海。`,
+          `雨后转晴或转多云的清晨，重点关注 ${window} 的观景窗口。`,
+          '山区天气变化快，出发前确认景区开放、交通和索道时间。',
+        ],
+      },
+      {
+        name: '轻量游览线',
+        time: '2.5h',
+        distance: '4km',
+        difficulty: '轻中',
+        best,
+        tips: [
+          '适合第一次到访或天气不稳定时作为保守路线。',
+          '清晨风大或能见度差时，优先选择成熟步道和近距离观景点。',
+          '带好防风外套、雨具、头灯和防滑鞋，给返程留足余量。',
+        ],
+      },
+    ],
+  };
+}
+
 const mountains = [
   {
     name: '黄山',
@@ -139,6 +195,336 @@ const mountains = [
       { name: '西线', time: '5h', distance: '8km', difficulty: '中高', best: '老金顶', tips: ['西线生态感更强，体力消耗略高。', '老金顶视野开阔，低云天更容易看到层云。', '旺季门票和索道建议提前预约。'] },
     ],
   },
+  createMountain({
+    name: '恒山',
+    slug: 'hengshan-shanxi',
+    province: '山西',
+    city: '大同市浑源县',
+    latitude: 39.674,
+    longitude: 113.733,
+    altitude: '2016m',
+    sunrise: '05:02',
+    window: '04:45-06:50',
+    baseProbability: 70,
+    best: '天峰岭',
+    routeName: '北岳主线',
+  }),
+  createMountain({
+    name: '衡山',
+    slug: 'hengshan-hunan',
+    province: '湖南',
+    city: '衡阳市南岳区',
+    latitude: 27.254,
+    longitude: 112.701,
+    altitude: '1300m',
+    sunrise: '05:36',
+    window: '05:20-07:20',
+    baseProbability: 78,
+    best: '祝融峰',
+    routeName: '南岳主线',
+  }),
+  createMountain({
+    name: '嵩山',
+    slug: 'songshan',
+    province: '河南',
+    city: '郑州市登封市',
+    latitude: 34.508,
+    longitude: 113.011,
+    altitude: '1512m',
+    sunrise: '05:18',
+    window: '05:00-07:05',
+    baseProbability: 68,
+    best: '峻极峰',
+    routeName: '太室山线',
+  }),
+  createMountain({
+    name: '雁荡山',
+    slug: 'yandangshan',
+    province: '浙江',
+    city: '温州市乐清市',
+    latitude: 28.373,
+    longitude: 121.081,
+    altitude: '1057m',
+    sunrise: '05:00',
+    window: '04:45-06:55',
+    baseProbability: 82,
+    best: '灵峰景区',
+    routeName: '灵峰灵岩线',
+  }),
+  createMountain({
+    name: '九华山',
+    slug: 'jiuhuashan',
+    province: '安徽',
+    city: '池州市青阳县',
+    latitude: 30.478,
+    longitude: 117.812,
+    altitude: '1342m',
+    sunrise: '05:12',
+    window: '04:55-07:05',
+    baseProbability: 80,
+    best: '天台峰',
+    routeName: '天台景区线',
+  }),
+  createMountain({
+    name: '五台山',
+    slug: 'wutaishan',
+    province: '山西',
+    city: '忻州市五台县',
+    latitude: 39.005,
+    longitude: 113.596,
+    altitude: '3058m',
+    sunrise: '05:01',
+    window: '04:40-06:55',
+    baseProbability: 76,
+    best: '台怀镇高处观景点',
+    routeName: '台怀镇周边线',
+  }),
+  createMountain({
+    name: '普陀山',
+    slug: 'putuoshan',
+    province: '浙江',
+    city: '舟山市普陀区',
+    latitude: 30.006,
+    longitude: 122.390,
+    altitude: '291m',
+    sunrise: '04:53',
+    window: '04:40-06:45',
+    baseProbability: 72,
+    best: '佛顶山',
+    routeName: '佛顶山线',
+    difficulty: '轻中',
+  }),
+  createMountain({
+    name: '雪窦山',
+    slug: 'xuedoushan',
+    province: '浙江',
+    city: '宁波市奉化区',
+    latitude: 29.689,
+    longitude: 121.227,
+    altitude: '800m',
+    sunrise: '04:56',
+    window: '04:40-06:50',
+    baseProbability: 78,
+    best: '千丈岩观景区',
+    routeName: '溪口雪窦线',
+  }),
+  createMountain({
+    name: '齐云山',
+    slug: 'qiyunshan',
+    province: '安徽',
+    city: '黄山市休宁县',
+    latitude: 29.812,
+    longitude: 118.035,
+    altitude: '585m',
+    sunrise: '05:11',
+    window: '04:55-07:00',
+    baseProbability: 78,
+    best: '月华街观景台',
+    routeName: '月华街线',
+    difficulty: '轻中',
+  }),
+  createMountain({
+    name: '武当山',
+    slug: 'wudangshan',
+    province: '湖北',
+    city: '十堰市丹江口市',
+    latitude: 32.406,
+    longitude: 111.003,
+    altitude: '1612m',
+    sunrise: '05:28',
+    window: '05:10-07:20',
+    baseProbability: 77,
+    best: '金顶',
+    routeName: '金顶线',
+  }),
+  createMountain({
+    name: '龙虎山',
+    slug: 'longhushan',
+    province: '江西',
+    city: '鹰潭市贵溪市',
+    latitude: 28.093,
+    longitude: 116.991,
+    altitude: '247m',
+    sunrise: '05:18',
+    window: '05:00-07:05',
+    baseProbability: 74,
+    best: '仙水岩观景区',
+    routeName: '仙水岩线',
+    difficulty: '轻中',
+  }),
+  createMountain({
+    name: '青城山',
+    slug: 'qingchengshan',
+    province: '四川',
+    city: '成都市都江堰市',
+    latitude: 30.905,
+    longitude: 103.565,
+    altitude: '1260m',
+    sunrise: '06:02',
+    window: '05:45-08:00',
+    baseProbability: 79,
+    best: '老君阁',
+    routeName: '前山主线',
+  }),
+  createMountain({
+    name: '四姑娘山',
+    slug: 'siguniangshan',
+    province: '四川',
+    city: '阿坝州小金县',
+    latitude: 31.095,
+    longitude: 102.902,
+    altitude: '6250m',
+    sunrise: '06:05',
+    window: '05:45-08:05',
+    baseProbability: 83,
+    best: '长坪沟观景点',
+    routeName: '长坪沟线',
+    difficulty: '中高',
+  }),
+  createMountain({
+    name: '天柱山',
+    slug: 'tianzhushan',
+    province: '安徽',
+    city: '安庆市潜山市',
+    latitude: 30.733,
+    longitude: 116.459,
+    altitude: '1489m',
+    sunrise: '05:17',
+    window: '05:00-07:10',
+    baseProbability: 82,
+    best: '天池峰',
+    routeName: '主峰线',
+  }),
+  createMountain({
+    name: '长白山',
+    slug: 'changbaishan',
+    province: '吉林',
+    city: '白山市长白山保护开发区',
+    latitude: 42.006,
+    longitude: 128.055,
+    altitude: '2749m',
+    sunrise: '04:01',
+    window: '03:45-06:00',
+    baseProbability: 80,
+    best: '天池北坡',
+    routeName: '天池北坡线',
+    difficulty: '中高',
+  }),
+  createMountain({
+    name: '梅里雪山',
+    slug: 'meilixueshan',
+    province: '云南',
+    city: '迪庆州德钦县',
+    latitude: 28.436,
+    longitude: 98.683,
+    altitude: '6740m',
+    sunrise: '06:27',
+    window: '06:05-08:35',
+    baseProbability: 86,
+    best: '飞来寺观景台',
+    routeName: '飞来寺观景线',
+    difficulty: '轻中',
+  }),
+  createMountain({
+    name: '武夷山',
+    slug: 'wuyishan',
+    province: '福建',
+    city: '南平市武夷山市',
+    latitude: 27.756,
+    longitude: 117.683,
+    altitude: '2158m',
+    sunrise: '05:17',
+    window: '05:00-07:10',
+    baseProbability: 83,
+    best: '天游峰',
+    routeName: '天游峰线',
+  }),
+  createMountain({
+    name: '三清山',
+    slug: 'sanqingshan',
+    province: '江西',
+    city: '上饶市玉山县',
+    latitude: 28.915,
+    longitude: 118.064,
+    altitude: '1819m',
+    sunrise: '05:10',
+    window: '04:55-07:05',
+    baseProbability: 85,
+    best: '玉京峰',
+    routeName: '南清园线',
+    difficulty: '中高',
+  }),
+  createMountain({
+    name: '张家界',
+    slug: 'zhangjiajie',
+    province: '湖南',
+    city: '张家界市武陵源区',
+    latitude: 29.345,
+    longitude: 110.479,
+    altitude: '1262m',
+    sunrise: '05:42',
+    window: '05:25-07:35',
+    baseProbability: 87,
+    best: '袁家界观景台',
+    routeName: '袁家界线',
+  }),
+  createMountain({
+    name: '太白山',
+    slug: 'taibaishan',
+    province: '陕西',
+    city: '宝鸡市眉县',
+    latitude: 34.058,
+    longitude: 107.748,
+    altitude: '3771m',
+    sunrise: '05:39',
+    window: '05:20-07:35',
+    baseProbability: 78,
+    best: '拔仙台',
+    routeName: '高山区线',
+    difficulty: '高',
+  }),
+  createMountain({
+    name: '老君山',
+    slug: 'laojunshan',
+    province: '河南',
+    city: '洛阳市栾川县',
+    latitude: 33.752,
+    longitude: 111.638,
+    altitude: '2217m',
+    sunrise: '05:26',
+    window: '05:10-07:20',
+    baseProbability: 80,
+    best: '金顶道观群',
+    routeName: '金顶线',
+  }),
+  createMountain({
+    name: '云台山',
+    slug: 'yuntaishan',
+    province: '河南',
+    city: '焦作市修武县',
+    latitude: 35.429,
+    longitude: 113.383,
+    altitude: '1308m',
+    sunrise: '05:13',
+    window: '04:55-07:05',
+    baseProbability: 73,
+    best: '茱萸峰',
+    routeName: '茱萸峰线',
+  }),
+  createMountain({
+    name: '太姥山',
+    slug: 'taimushan',
+    province: '福建',
+    city: '宁德市福鼎市',
+    latitude: 27.103,
+    longitude: 120.211,
+    altitude: '917m',
+    sunrise: '05:08',
+    window: '04:50-07:00',
+    baseProbability: 82,
+    best: '九鲤湖观景区',
+    routeName: '山海观景线',
+  }),
 ];
 
 const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -161,6 +547,20 @@ function addDays(date, offset) {
   return next;
 }
 
+function buildDatePickerRange(now = new Date()) {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return {
+    dateStart: formatDate(today),
+    dateEnd: formatDate(addDays(today, 30)),
+  };
+}
+
+function normalizeSelectedDate(value, range) {
+  if (!value || value < range.dateStart) return range.dateStart;
+  if (value > range.dateEnd) return range.dateEnd;
+  return value;
+}
+
 function weatherFor(probability, offset) {
   if (probability >= 88) return { icon: '☁', label: '多云' };
   if (probability >= 76) return { icon: '☁', label: '阴天' };
@@ -172,13 +572,21 @@ function displayMetric(value, suffix = '') {
   return Number.isFinite(value) ? `${value}${suffix}` : '--';
 }
 
+function normalizeSearchText(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '');
+}
+
+const initialDatePickerRange = buildDatePickerRange();
+
 Page({
   data: {
     mountains,
     mountainNames: mountains.map((item) => `${item.name} · ${item.province}`),
     mountainIndex: 0,
     routeIndex: 0,
-    selectedDate: formatDate(new Date()),
+    selectedDate: initialDatePickerRange.dateStart,
+    dateStart: initialDatePickerRange.dateStart,
+    dateEnd: initialDatePickerRange.dateEnd,
     currentMountain: mountains[0],
     forecasts: [],
     currentForecast: {},
@@ -193,11 +601,52 @@ Page({
     weatherUpdatedAt: '',
     weatherData: null,
     weatherRequestKey: '',
+    searchValue: '',
+    searchFocused: false,
+    searchResults: [],
   },
 
   onLoad() {
+    const range = buildDatePickerRange();
+    this.setData({
+      ...range,
+      selectedDate: normalizeSelectedDate(this.data.selectedDate, range),
+    });
     this.refreshPage();
     this.refreshWeather();
+  },
+
+  onSearchFocus() {
+    this.setData({
+      searchFocused: true,
+      searchResults: this.buildSearchResults(this.data.searchValue),
+    });
+  },
+
+  onSearchInput(event) {
+    const searchValue = event.detail.value;
+    this.setData({
+      searchValue,
+      searchFocused: true,
+      searchResults: this.buildSearchResults(searchValue),
+    });
+  },
+
+  onSearchConfirm() {
+    const firstResult = this.data.searchResults[0];
+    if (firstResult) this.selectMountainByIndex(firstResult.index);
+  },
+
+  onSearchClear() {
+    this.setData({
+      searchValue: '',
+      searchFocused: false,
+      searchResults: [],
+    });
+  },
+
+  onSearchResultTap(event) {
+    this.selectMountainByIndex(Number(event.currentTarget.dataset.index));
   },
 
   buildForecasts(mountain) {
@@ -370,6 +819,55 @@ Page({
     }));
   },
 
+  buildSearchResults(keyword) {
+    const query = normalizeSearchText(keyword);
+    if (!query) return [];
+
+    return mountains
+      .map((mountain, index) => {
+        const routeText = (mountain.routes || [])
+          .map((route) => [route.name, route.best, ...(route.tips || [])].join(' '))
+          .join(' ');
+        const searchableText = normalizeSearchText([
+          mountain.name,
+          mountain.province,
+          mountain.city,
+          mountain.slug,
+          mountain.altitude,
+          routeText,
+        ].join(' '));
+
+        if (!searchableText.includes(query)) return null;
+
+        return {
+          index,
+          name: mountain.name,
+          meta: `${mountain.province} · ${mountain.city}`,
+          detail: `${mountain.routes?.[0]?.best || '主峰观景点'} · ${mountain.altitude}`,
+          activeClass: index === this.data.mountainIndex ? 'active' : '',
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 8);
+  },
+
+  selectMountainByIndex(index, options = {}) {
+    if (!Number.isInteger(index) || !mountains[index]) return;
+    const nextSearchValue = options.keepSearchValue ? this.data.searchValue : mountains[index].name;
+
+    this.setData({
+      mountainIndex: index,
+      routeIndex: 0,
+      weatherData: null,
+      searchValue: nextSearchValue,
+      searchFocused: false,
+      searchResults: [],
+    }, () => {
+      this.refreshPage(null);
+      this.refreshWeather();
+    });
+  },
+
   refreshPage(weatherData = this.data.weatherData) {
     const mountain = mountains[this.data.mountainIndex];
     const route = mountain.routes[this.data.routeIndex] || mountain.routes[0];
@@ -431,19 +929,14 @@ Page({
   },
 
   onMountainChange(event) {
-    this.setData({
-      mountainIndex: Number(event.detail.value),
-      routeIndex: 0,
-      weatherData: null,
-    }, () => {
-      this.refreshPage(null);
-      this.refreshWeather();
-    });
+    this.selectMountainByIndex(Number(event.detail.value), { keepSearchValue: true });
   },
 
   onDateChange(event) {
+    const range = buildDatePickerRange();
     this.setData({
-      selectedDate: event.detail.value,
+      ...range,
+      selectedDate: normalizeSelectedDate(event.detail.value, range),
       weatherData: null,
     }, () => {
       this.refreshPage(null);

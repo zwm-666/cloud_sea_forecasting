@@ -38,6 +38,7 @@ page {
   line-height: 1.55;
 }
 
+.search-wrap,
 .search-box,
 .input-like,
 .card,
@@ -45,11 +46,15 @@ page {
   box-sizing: border-box;
 }
 
+.search-wrap {
+  position: relative;
+  margin-bottom: 22rpx;
+}
+
 .search-box {
   display: flex;
   align-items: center;
   height: 76rpx;
-  margin-bottom: 22rpx;
   padding: 0 24rpx;
   color: #7d9691;
   background: rgba(255, 255, 255, 0.76);
@@ -58,12 +63,113 @@ page {
 }
 
 .search-icon {
+  flex: 0 0 auto;
   margin-right: 12rpx;
   font-size: 34rpx;
 }
 
-.search-placeholder {
+.search-input {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  color: #142825;
   font-size: 25rpx;
+  line-height: 72rpx;
+}
+
+.search-placeholder {
+  color: #8aa09b;
+  font-size: 25rpx;
+}
+
+.search-clear {
+  flex: 0 0 48rpx;
+  width: 48rpx;
+  min-width: 48rpx;
+  max-width: 48rpx;
+  height: 48rpx;
+  min-height: 48rpx;
+  margin: 0 0 0 10rpx;
+  padding: 0;
+  color: #6f8882;
+  font-size: 34rpx;
+  line-height: 48rpx;
+  text-align: center;
+  background: #eef6f2;
+  border: 0;
+  border-radius: 999rpx;
+}
+
+.search-clear::after {
+  border: 0;
+}
+
+.search-dropdown,
+.search-empty {
+  position: absolute;
+  top: 88rpx;
+  right: 0;
+  left: 0;
+  z-index: 20;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1rpx solid #dceae5;
+  border-radius: 20rpx;
+  box-shadow: 0 18rpx 38rpx rgba(42, 68, 61, 0.14);
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  min-height: 86rpx;
+  padding: 16rpx 20rpx;
+  border-bottom: 1rpx solid #edf4f1;
+}
+
+.search-result:last-child {
+  border-bottom: 0;
+}
+
+.search-result.active {
+  background: #f2f8e6;
+}
+
+.search-result-main {
+  min-width: 0;
+}
+
+.search-result-name {
+  color: #142825;
+  font-size: 27rpx;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.search-result-meta,
+.search-result-detail {
+  color: #718b86;
+  font-size: 21rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.search-result-meta {
+  margin-top: 4rpx;
+}
+
+.search-result-detail {
+  flex: 0 0 auto;
+  max-width: 280rpx;
+  text-align: right;
+}
+
+.search-empty {
+  padding: 24rpx;
+  color: #718b86;
+  font-size: 24rpx;
+  font-weight: 800;
 }
 
 .form-panel {

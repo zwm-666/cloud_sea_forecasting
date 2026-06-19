@@ -1,13 +1,41 @@
 <scroll-view class="page" scroll-y enhanced show-scrollbar="{{false}}">
   <view class="hero">
     <view class="eyebrow">China Cloud Sea Forecast</view>
-    <view class="title">中国名山云海预测</view>
+    <view class="title">云海小工具</view>
     <view class="subtitle">选择山峰与日期，查看云海概率、路线攻略和出行窗口。</view>
   </view>
 
-  <view class="search-box">
-    <text class="search-icon">⌕</text>
-    <text class="search-placeholder">搜索山峰、路线、城市</text>
+  <view class="search-wrap">
+    <view class="search-box">
+      <text class="search-icon">⌕</text>
+      <input
+        class="search-input"
+        value="{{searchValue}}"
+        placeholder="搜索山峰、路线、城市"
+        placeholder-class="search-placeholder"
+        confirm-type="search"
+        bindfocus="onSearchFocus"
+        bindinput="onSearchInput"
+        bindconfirm="onSearchConfirm"
+      />
+      <button wx:if="{{searchValue}}" class="search-clear" bindtap="onSearchClear" aria-label="清除搜索">×</button>
+    </view>
+    <view wx:if="{{searchFocused && searchResults.length}}" class="search-dropdown">
+      <view
+        wx:for="{{searchResults}}"
+        wx:key="index"
+        class="search-result {{item.activeClass}}"
+        data-index="{{item.index}}"
+        bindtap="onSearchResultTap"
+      >
+        <view class="search-result-main">
+          <view class="search-result-name">{{item.name}}</view>
+          <view class="search-result-meta">{{item.meta}}</view>
+        </view>
+        <view class="search-result-detail">{{item.detail}}</view>
+      </view>
+    </view>
+    <view wx:if="{{searchFocused && searchValue && !searchResults.length}}" class="search-empty">没有匹配的山或地区</view>
   </view>
 
   <view class="form-panel">
@@ -19,7 +47,7 @@
     </view>
     <view class="field">
       <view class="label">出发日期</view>
-      <picker mode="date" value="{{selectedDate}}" bindchange="onDateChange">
+      <picker mode="date" value="{{selectedDate}}" start="{{dateStart}}" end="{{dateEnd}}" bindchange="onDateChange">
         <view class="input-like">{{selectedDate}}</view>
       </picker>
     </view>
